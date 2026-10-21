@@ -8,7 +8,7 @@ class Token:
 	line: int
 	column: int
 
-Token_Specification = [
+TOKEN_SPECIFICATION = [
 	('NUMBER',   r'\d+(\.\d+)?'),  # Integer or decimal number
     ('ASSIGN',   r'='),            # Assignment operator
     ('END',      r';'),            # Statement terminator

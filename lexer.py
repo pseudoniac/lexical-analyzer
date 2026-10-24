@@ -10,21 +10,36 @@ class Token:
     column: int
 
 TOKEN_SPECIFICATION = [
-	('INTEGER',   r'\d+(\.\d+)?'),          # Integer or decimal number
-    ('REL_OP', r'==|!=|<=|>=|<|>'),         # Relational operator
     ('COMMENTLINE', r'(#|//).*'), # Comment line
-    ('ASSIGN',   r'='),                     # Assignment operator
-    ('SEMICOLON',      r';'),               # Statement terminator
-    ('LPAREN',   r'\('),                    # Left parenthesis
-    ('RPAREN',   r'\)'),                    # Right parenthesis
-    ('LBRACE',   r'\{'),                    # Left BRACES
-    ('RBRACE',   r'\}'),                    # Right BRACES
-    ('IDENTIFIER',    r'[a-zA-Z_]\w*'),     # Identifiers / variable names
+    ('SKIP', r'[ \t]+'),       # Skip spaces and tabs
+    ('NEWLINE', r'\n'),           # Line break
+    ('INVALID_IDENT', r'(\d+[a-zA-Z0-9_@$#~`?!\\-]*[a-zA-Z_@$#~`?!\\-][a-zA-Z0-9_@$#~`?!\\-]*|[a-zA-Z_]\w*[@$#~`?!\\][a-zA-Z0-9_@$#~`?!\\-]*)'), # Identifier containing/ending with illegal symbols (e.g., a2@, var#name)
+	('INTEGER', r'\d+(\.\d+)?'),          # Integer or decimal number
+    ('IDENTIFIER', r'[a-zA-Z_]\w*'),     # Identifiers / variable names
+    ('REL_OP', r'==|!=|<=|>=|<|>'),         # Relational operator
+    ('ASSIGN', r'='),                     # Assignment operator
     ('ARITH_OP', r'\+|\-|\*|\/|\%'),         # Arithmetic operator
-    ('NEWLINE',  r'\n'),           # Line break
-    ('SKIP',     r'[ \t]+'),       # Skip spaces and tabs
+    ('SEMICOLON', r';'),               # Statement terminator
+    ('LPAREN', r'\('),                    # Left parenthesis
+    ('RPAREN', r'\)'),                    # Right parenthesis
+    ('LBRACE', r'\{'),                    # Left BRACES
+    ('RBRACE', r'\}'),                    # Right BRACES
     ('MISMATCH', r'.'),            # Any other character (error handling)
 ]
+
+FREQUENCY_BREAKDOWN_ORDER = [
+        'KEYWORD',
+        'IDENTIFIER',
+        'INTEGER',
+        'ARITH_OP',
+        'REL_OP',
+        'ASSIGN',
+        'LPAREN',
+        'RPAREN',
+        'LBRACE',
+        'RBRACE',
+        'SEMICOLON',
+    ]
 
 def tokenize(code: str):
     # Construct combined regex string
@@ -35,74 +50,93 @@ def tokenize(code: str):
     line_start = 0
     pos = 0
 
+    tokens = []
+    errors = []
+
     match = get_token(code, pos)
     while match is not None:
         type_ = match.lastgroup
         value = match.group(type_)
         column = match.start() - line_start + 1
-        
-        if type_ == 'INTEGER':
-            yield Token('INTEGER', value, line_num, column)
-        elif type_ == 'IDENTIFIER':
-            # Keywords can be checked here to separate them from identifiers
-            keywords = {'if', 'else', 'while', 'let', 'print'}
-            token_type = 'KEYWORD' if value in keywords else 'IDENTIFIER'
-            yield Token(token_type, value, line_num, column)
-        elif type_ in ('ASSIGN', 'SEMICOLON', 'ARITH_OP', 'LPAREN', 'RPAREN' ,'REL_OP' , 'LBRACE','RBRACE'):
-            yield Token(type_, value, line_num, column)
+
+        if type_ == 'INVALID_IDENT':
+            errors.append(f"at line {line_num}, col {column}: malformed token '{value}'")
+        elif type_ == 'MISMATCH':
+            errors.append(f"at line {line_num}, col {column}: invalid character '{value}'")
+        elif type_ in ('SKIP','COMMENTLINE'):
+            pass
         elif type_ == 'NEWLINE':
             line_start = match.end()
             line_num += 1
-        elif type_ in ('SKIP','COMMENTLINE'):
-            pass
-        elif type_ == 'MISMATCH':
-            raise SyntaxError(f"Unexpected character '{value}' at line {line_num}, column {column}")
+        else:
+            if type_ == 'INTEGER':
+                tokens.append(Token('INTEGER', value, line_num, column))
+            elif type_ == 'IDENTIFIER':
+                # Keywords can be checked here to separate them from identifiers
+                keywords = {'if', 'else', 'while', 'let', 'print'}
+                token_type = 'KEYWORD' if value in keywords else 'IDENTIFIER'
+                tokens.append(Token(token_type, value, line_num, column))
+            elif type_ in ('ASSIGN', 'SEMICOLON', 'ARITH_OP', 'LPAREN', 'RPAREN' ,'REL_OP' , 'LBRACE','RBRACE'):
+                tokens.append(Token(type_, value, line_num, column))
         
         pos = match.end()
         match = get_token(code, pos)
 
-def analyze_tokens(code: str):
-    tokens = list(tokenize(code))
-    
-    total_count = len(tokens)
-    type_counts = Counter(t.type for t in tokens)
-    
-    return total_count, type_counts
+    return tokens, errors
 
-#replace here if want to test other code
-sample_code = """  # Public test 2: while loops with a nested if
-# Prints the factorial of 5, then counts the multiples of 3 from 1 to 12
-let n = 5;
-let fact = 1;
-while (n > 1) {
-    fact = fact * n;
-    n = n - 1;
-}
-print(fact);
-
-let i = 1;
-let count = 0;
-while (i <= 12) {
-    if (i % 3 == 0) {
-        count = count + 1;
-    }
-    i = i + 1;
-}
-print(count);"""    
-
-try:
+def print_token(tokens, errors):
     print("== TOKEN STREAM ==")
-    print(f"{'LINE':>4}  {'COL':>4}  {'TYPE':<12} {'LEXEME'}")
-    tokens = list(tokenize(sample_code))
-    for token in tokens:
-        print(f"{token.line:>4}  {token.column:>4}  {token.type:<12} {token.value}")
+    print(f"{'LINE':>4} {'COL':>4}  {'TYPE':<11} {'LEXEME'}")
+    for t in tokens:
+        print(f"{t.line:>4} {t.column:>4}  {t.type:<11} {t.value}")
+
+    error_count = len(errors)
+    if errors:
+        for err in errors:
+            print(f"LexicalError {err}")
+            
         
-    total, breakdown = analyze_tokens(sample_code)
+    total = len(tokens)
+    breakdown = Counter(t.type for t in tokens)
+
+    category_map = {
+            'KEYWORD':    breakdown['KEYWORD'],
+            'IDENTIFIER': breakdown['IDENTIFIER'],
+            'INTEGER':    breakdown['INTEGER'],
+            'ARITH_OP':   breakdown['ARITH_OP'],
+            'REL_OP':     breakdown['REL_OP'],
+            'ASSIGN':     breakdown['ASSIGN'],
+            'LPAREN':     breakdown['LPAREN'],
+            'RPAREN':     breakdown['RPAREN'],
+            'LBRACE':     breakdown['LBRACE'],
+            'RBRACE':     breakdown['RBRACE'],
+            'SEMICOLON':  breakdown['SEMICOLON'],
+        }
 
     print("\n== TOKEN COUNTS ==")
-    print(f"Total Tokens: {total}")
-    for token_type, count in breakdown.items():
-        print(f"  {token_type}: {count}")
+    print(f"Total tokens: {total}")
+    for category in FREQUENCY_BREAKDOWN_ORDER:
+        count = category_map[category]
+        if count > 0:
+            print(f"  {category:<11} {count}")
 
-except SyntaxError as e:
-    print(f"Lexer Error: {e}")
+
+def main():
+   #replace here if want to test other code
+    sample_code = """# Public test 4: two lexical errors, both must be reported
+    let price = 250;
+    let rate = 6;
+    let tax = price $ rate / 100;
+    let 2nd = tax + 1;
+    print(tax);
+    """   
+    tokens, errors = tokenize(sample_code)
+
+    print_token(tokens, errors)
+
+    if errors:
+        print(f"\n{len(errors)} lexical error(s). Parsing skipped.")
+        #stop here - skip parser call 
+        return
+
+main()

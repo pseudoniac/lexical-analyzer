@@ -35,7 +35,6 @@ def tokenize(code: str):
     line_start = 0
     pos = 0
 
-    
     match = get_token(code, pos)
     while match is not None:
         type_ = match.lastgroup
@@ -70,6 +69,7 @@ def analyze_tokens(code: str):
     
     return total_count, type_counts
 
+#replace here if want to test other code
 sample_code = """  # Public test 1: arithmetic, precedence and if/else
 let a = 8;
 let b = 3;
@@ -88,15 +88,18 @@ if (c >= d) {
 }"""    
 
 try:
-    for token in tokenize(sample_code):
-        print(token)
+    print("== TOKEN STREAM ==")
+    print(f"{'LINE':>4}  {'COL':>4}  {'TYPE':<12} {'LEXEME'}")
+    tokens = list(tokenize(sample_code))
+    for token in tokens:
+        print(f"{token.line:>4}  {token.column:>4}  {token.type:<12} {token.value}")
+        
+    total, breakdown = analyze_tokens(sample_code)
+
+    print("\n== TOKEN COUNTS ==")
+    print(f"Total Tokens: {total}")
+    for token_type, count in breakdown.items():
+        print(f"  {token_type}: {count}")
+
 except SyntaxError as e:
     print(f"Lexer Error: {e}")
-
-total, breakdown = analyze_tokens(sample_code)
-
-print(f"Total Tokens: {total}")
-print("Token Frequency:")
-for token_type, count in breakdown.items():
-    print(f"  {token_type}: {count}")
-

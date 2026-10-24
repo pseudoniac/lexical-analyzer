@@ -11,6 +11,8 @@ class Token:
 
 TOKEN_SPECIFICATION = [
 	('INTEGER',   r'\d+(\.\d+)?'),          # Integer or decimal number
+    ('REL_OP', r'==|!=|<=|>=|<|>'),         # Relational operator
+    ('COMMENTLINE', r'(#|//).*'), # Comment line
     ('ASSIGN',   r'='),                     # Assignment operator
     ('SEMICOLON',      r';'),               # Statement terminator
     ('LPAREN',   r'\('),                    # Left parenthesis
@@ -19,9 +21,7 @@ TOKEN_SPECIFICATION = [
     ('RBRACE',   r'\}'),                    # Right BRACES
     ('IDENTIFIER',    r'[a-zA-Z_]\w*'),     # Identifiers / variable names
     ('ARITH_OP', r'\+|\-|\*|\/|\%'),         # Arithmetic operator
-    ('REL_OP', r'==|!=|<=|>=|<|>'),         # Relational operator
     ('NEWLINE',  r'\n'),           # Line break
-    ('COMMENTLINE', r'(#|//).*'), # Comment line
     ('SKIP',     r'[ \t]+'),       # Skip spaces and tabs
     ('MISMATCH', r'.'),            # Any other character (error handling)
 ]
@@ -70,22 +70,25 @@ def analyze_tokens(code: str):
     return total_count, type_counts
 
 #replace here if want to test other code
-sample_code = """  # Public test 1: arithmetic, precedence and if/else
-let a = 8;
-let b = 3;
-let c = a + b * 2;
-let d = (a + b) * 2;
-let e = a - b - 1;
-let f = a / b + a % b;
-print(c);
-print(d);
-print(e);
-print(f);
-if (c >= d) {
-    print(1);
-} else {
-    print(0);
-}"""    
+sample_code = """  # Public test 2: while loops with a nested if
+# Prints the factorial of 5, then counts the multiples of 3 from 1 to 12
+let n = 5;
+let fact = 1;
+while (n > 1) {
+    fact = fact * n;
+    n = n - 1;
+}
+print(fact);
+
+let i = 1;
+let count = 0;
+while (i <= 12) {
+    if (i % 3 == 0) {
+        count = count + 1;
+    }
+    i = i + 1;
+}
+print(count);"""    
 
 try:
     print("== TOKEN STREAM ==")

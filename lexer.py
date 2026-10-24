@@ -90,7 +90,6 @@ def print_token(tokens, errors):
     for t in tokens:
         print(f"{t.line:>4} {t.column:>4}  {t.type:<11} {t.value}")
 
-    error_count = len(errors)
     if errors:
         for err in errors:
             print(f"LexicalError {err}")
